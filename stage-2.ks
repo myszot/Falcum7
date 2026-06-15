@@ -244,10 +244,10 @@ function updatePitchProgram {
     set last_mass to ship:mass.
 
     set pitch to 90 - VANG(SHIP:FACING:FOREVECTOR, SHIP:UP:vector).
-    print "Pitch: " + round(pitch, 1) + "°" at (0, 3).
-    print "Target: " + round(final_steer_pitch, 1) + "°" at (0, 4).
-    print "AOA: " + round(abs(srf_prog_pitch - pitch), 1) + "°" at (0, 5).
-    print "AOA limit: " + round(aoa_limit, 1) + "°" at (0, 6).
+    print "Pitch: " + round(pitch, 1) + "°   " at (0, 3).
+    print "Target: " + round(final_steer_pitch, 1) + "°   " at (0, 4).
+    print "AOA: " + round(abs(srf_prog_pitch - pitch), 1) + "°   " at (0, 5).
+    print "AOA limit: " + round(aoa_limit, 1) + "°   " at (0, 6).
 
     print "stage sep handled by Booster CPU" at (0, 8).
 }
@@ -265,7 +265,8 @@ set A to 0.21.   // Initial pitch height guess (i have no idea how many degrees 
 set B to -0.01.  // Nose flattening rate guess
 
 FUNCTION updateGuidance {
-    local delta is 0.01.
+    local delta_A is 0.01.
+    local delta_B is 0.0001.
 
     // Run baseline pass
     local basePass is predictApPe(A, B, true).
@@ -274,17 +275,21 @@ FUNCTION updateGuidance {
     local elapsed is basePass[2].
 
     // Run perturbed passes
-    local a_pass is predictApPe(A + delta, B, false).
+    local a_pass is predictApPe(A + delta_A, B,           false).
     local ap_A is a_pass[0].
+    local pe_A is a_pass[1].
 
-    local b_pass is predictApPe(A,         B + delta, false).
+    local b_pass is predictApPe(A,           B + delta_B, false).
+    local ap_B  is b_pass[0].
     local pe_B  is b_pass[1].
 
     // Calculate partial derivatives
-    local dAp_dA is (ap_A - baseAp) / delta.
-    local dPe_dB is (pe_B - basePe) / delta.
+    local dAp_dA is (ap_A - baseAp) / delta_A.
+    local dPe_dA is (pe_A - basePe) / delta_A.
+    local dAp_dB is (ap_B - baseAp) / delta_B.
+    local dPe_dB is (pe_B - basePe) / delta_B.
     
-    // wow far off are we from the dream orbit?
+    // how far off are we from the dream orbit?
     local errAp is targetAlt - baseAP.
     local errPe  is target_coast_pe - basePE. 
 
@@ -329,6 +334,10 @@ FUNCTION updateGuidance {
     print "B (Rate):    " + round(B, 5) + "    " at (0, 13).
     print "Time to SECO: " + round(elapsed, 1) + "s   " at (0, 14).
     print "SMA Progress: " + round(current_sma/1000, 1) + " / " + round(target_coast_sma/1000, 1) + " km    " at (0, 15).
+    print "dAp/dA: " + dAp_dA + "     " at (0, 16).
+    print "dPe/dA: " + dPe_dA + "     " at (0, 17).
+    print "dAp/dB: " + dAp_dB + "     " at (0, 18).
+    print "dPe/dB: " + dPe_dB + "     " at (0, 19).
     
     // ---- CUTOFF CHECK (SECO) ----
     if current_sma >= target_coast_sma { setState("COAST"). }
